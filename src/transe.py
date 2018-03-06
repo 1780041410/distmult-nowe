@@ -41,7 +41,7 @@ class TFParts(object):
         # margins
         self._m1 = 0.25
         self.L1 = L1
-        self._neg_weight = 1.3
+        self._neg_weight = 0.5
         self._epsilon = 1e-10
         self.build()
 

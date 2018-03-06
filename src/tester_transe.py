@@ -8,6 +8,8 @@ import numpy as np
 import tensorflow as tf
 from numpy import linalg as LA
 import heapq as HP
+# python3
+from queue import PriorityQueue
 
 import data  
 import transe
@@ -201,4 +203,40 @@ class Tester(object):
         # t_vec = self.vec_c[t]
         r_vec = self.vec_r[r]
         return np.dot(r_vec, np.multiply(h, t))
+# Given query (h, r, ?t) or (?h, r, t), Iteratve through all candidate entity indices and return the candidates with
+    # tpok self.dissimilarity in the form of [(index1, score1), (index2, score2)]
+    # Use priority queue, caution: __lt__; using index_list
+    def link_pred_topk(self, e, r, target='t', topk=10):
+        q = PriorityQueue(maxsize=topk) # using queue.PriorityQueue()
+        # update: TODO
+        for i in range(self.vec_c.shape[0]):
+            if i < topk:
+                dist = self.dissimilarity(e,r,i) if target == 't' else self.dissimilarity(i,r,e)
+                q.put(self.index_dist(i, dist))
+            else:
+                current_min = q.get()
+                dist = self.dissimilarity(e,r,i) if target == 't' else self.dissimilarity(i,r,e)
+                if dist > current_min.dist:
+                    q.put(self.index_dist(i, dist))
+                else:
+                    q.put(current_min)
+        '''
+        if target == 't':
+            for i in range(self.vec_c.shape[0]):
+                dist = self.dissimilarity(e,r,i)
+                q.put(self.index_dist(i, dist))
+        elif target == 'h':
+            for i in range(self.vec_c.shape[0]):
+                dist = self.dissimilarity(i,r,e)
+                q.put(self.index_dist(i, dist))
+        else: 
+            raise ValueError("Invalid target option!")
+        '''
+        topk_array = []
+        for k in range(topk):
+            if q.empty():
+                raise Exception("Unexpected Error: PriorityQueue is empty!")
+            next_item = q.get()
+            topk_array.append(next_item)
+        return topk_array
     

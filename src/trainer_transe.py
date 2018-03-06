@@ -23,8 +23,9 @@ class Trainer(object):
         self.data_save_path = 'this-data.bin'
         self.L1=False
 
-    def build(self, data, dim=64, batch_size=128, save_path = 'this-transe.ckpt', data_save_path = 'this-data.bin', L1=False):
+    def build(self, data, dim=64, neg_per_positive = 64, batch_size=128, save_path = 'this-transe.ckpt', data_save_path = 'this-data.bin', L1=False):
         self.this_data = data
+        self.neg_per_positive = neg_per_positive
         self.dim = self.this_data.dim = dim
         self.batch_size = self.this_data.batch_size = batch_size
         self.data_save_path = data_save_path
@@ -86,10 +87,11 @@ class Trainer(object):
         this_save_path = self.tf_parts._saver.save(sess, self.save_path)
         with sess.as_default():
             ht_embeddings = self.tf_parts._ht.eval()
+            r_embeddings = self.tf_parts._r.eval()
         print("transe saved in file: %s" % this_save_path)
         sess.close()
         print("Done")
-        return ht_embeddings
+        return ht_embeddings,r_embeddings
 
     def train1epoch(self, sess, num_A_batch, lr, a1, m1, epoch, debug=True):
         '''build and train a model.
