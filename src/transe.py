@@ -27,7 +27,6 @@ def orthogonal_initializer(scale=1.0, dtype=tf.float32):
 
 class TFParts(object):
     '''TensorFlow-related things.
-
     This is to keep TensorFlow-related components in a neat shell.
     '''
 
@@ -157,62 +156,32 @@ class TFParts(object):
 #             A_t_word_embedding_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(word_embedding, t_word_embedding_index), 1)
             
             A_neg_hn_con_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(ht,A_neg_hn_index), 2)
-            A_neg_rel_hn_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(ht,A_neg_rel_hn_index), 2)
+            A_neg_rel_hn_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(r,A_neg_rel_hn_index), 2)
             A_neg_t_con_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(ht,A_neg_t_index), 2)
             A_neg_h_con_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(ht,A_neg_h_index), 2)
-            A_neg_rel_tn_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(ht,A_neg_rel_tn_index), 2)
+            A_neg_rel_tn_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(r,A_neg_rel_tn_index), 2)
             A_neg_tn_con_batch = tf.nn.l2_normalize(tf.nn.embedding_lookup(ht,A_neg_tn_index), 2)
             
             print("A_neg_hn_con_batch:", A_neg_hn_con_batch.shape)
-            # This stores h  + r - t
-            # A_loss_matrix = tf.subtract(tf.add(A_h_con_batch, A_rel_batch), A_t_con_batch)
-            # This stores h' + r - t' for negative samples
-            # A_neg_matrix = tf.subtract(tf.add(A_hn_con_batch, A_rel_batch), A_tn_con_batch)
-            # L-2 norm
-            # [||h M_hr + r - t M_tr|| + m1 - ||h' M_hr + r - t' M_tr||)]+     here [.]+ means max (. , 0)
-            # if self.L1:
-            #     self._A_loss = A_loss = tf.reduce_sum(
-            #         tf.maximum(
-            #         tf.subtract(tf.add(tf.reduce_sum(tf.abs(A_loss_matrix), 1), self._m1),
-            #         tf.reduce_sum(tf.abs(A_neg_matrix), 1)),
-            #         0.)
-            #     )
-            # else:
-            #     self._A_loss = A_loss = tf.reduce_sum(
-            #         tf.maximum(
-            #         tf.subtract(tf.add(tf.sqrt(tf.reduce_sum(tf.square(A_loss_matrix), 1)), self._m1),
-            #         tf.sqrt(tf.reduce_sum(tf.square(A_neg_matrix), 1))),
-            #         0.)
-            #     )
+
             
-            #f_score_h = tf.log(tf.sigmoid(tf.reduce_sum(tf.multiply(A_rel_batch, tf.multiply(A_h_con_batch, A_t_con_batch, "element_wise_multiply"),"r_product"),1)))
-            #f_score_hn = tf.log(tf.sigmoid(self._neg_weight * tf.reduce_mean((tf.add(tf.reduce_sum(tf.multiply(A_neg_rel_hn_batch, tf.multiply(A_neg_hn_con_batch, A_neg_t_con_batch)), 2), self._epsilon)),1)))
             f_score_h = tf.log(tf.sigmoid(tf.reduce_sum(tf.multiply(A_rel_batch, tf.multiply(A_h_con_batch, A_t_con_batch, "element_wise_multiply"),"r_product"),1)))
-            f_score_hn = tf.log(tf.sigmoid(self._neg_weight * tf.reduce_mean((tf.add(tf.reduce_sum(tf.multiply(A_neg_rel_hn_batch, tf.multiply(A_neg_hn_con_batch, A_neg_t_con_batch)), 2), self._epsilon)),1)))
-            f_score_tn = tf.log(tf.sigmoid(self._neg_weight * tf.reduce_mean((tf.add(tf.reduce_sum(tf.multiply(A_neg_rel_tn_batch, tf.multiply(A_neg_h_con_batch, A_neg_tn_con_batch)), 2), self._epsilon)),1)))
+            f_score_hn = tf.scalar_mul(self._neg_weight,tf.reduce_mean(tf.log(tf.sigmoid((tf.add(tf.reduce_sum(tf.multiply(A_neg_rel_hn_batch, tf.multiply(A_neg_hn_con_batch, A_neg_t_con_batch)), 2), self._epsilon)))),1))
+            f_score_tn = tf.scalar_mul(self._neg_weight, tf.reduce_mean(tf.log(tf.sigmoid((tf.add(tf.reduce_sum(tf.multiply(A_neg_rel_tn_batch, tf.multiply(A_neg_h_con_batch, A_neg_tn_con_batch)), 2), self._epsilon)))),1))
             
-#             align_score = tf.add(tf.reduce_sum(tf.multiply(A_h_con_batch, A_h_word_embedding_batch)), tf.reduce_sum(tf.multiply(A_t_con_batch, A_t_word_embedding_batch)))
-            align_score = 0
-            #self._A_loss = A_loss = (tf.reduce_sum(tf.concat([tf.subtract(f_score_h, f_score_hn), tf.subtract(f_score_h, f_score_tn)], axis=0)) ) / self._batch_size
-            self._A_loss = A_loss = (tf.reduce_sum(tf.subtract(tf.subtract(f_score_h, f_score_hn), f_score_tn)) + align_score ) / self._batch_size
-
-            # remove
-            #A_vec_restraint = tf.concat([tf.abs(tf.subtract(tf.sqrt(tf.reduce_sum(tf.square(A_h_con_batch), 1)), 1.)), tf.abs(tf.subtract(tf.sqrt(tf.reduce_sum(tf.square(A_t_con_batch), 1)), 1.))], 0)
-
-            #remove
-            #A_rel_restraint = tf.maximum(tf.subtract(tf.sqrt(tf.reduce_sum(tf.square(A_rel_batch), 1)), 1.), 0.)
-
-
-            # Type C loss : Soft-constraint on vector norms
-            #remove
-            #self._C_loss_A = C_loss_A = tf.reduce_sum(A_vec_restraint) / self._batch_size
-
-            # Force normalize pre-projected vecs
-
+            self._A_loss = A_loss = (tf.reduce_sum(tf.subtract(tf.subtract(f_score_h, f_score_hn), f_score_tn)) ) / self._batch_size
+            """
+            f_score_h = tf.subtract(1., tf.sigmoid(tf.reduce_sum(tf.multiply(A_rel_batch, tf.multiply(A_h_con_batch, A_t_con_batch, "element_wise_multiply"),"r_product"),1)))
+            f_score_hn = tf.sigmoid(tf.scalar_mul(self._neg_weight, tf.reduce_mean((tf.add(tf.reduce_sum(-tf.multiply(A_neg_rel_hn_batch, tf.multiply(A_neg_hn_con_batch, A_neg_t_con_batch)), 2), self._epsilon)),1)))
+            f_score_tn = tf.sigmoid(tf.scalar_mul(self._neg_weight, tf.reduce_mean((tf.add(tf.reduce_sum(-tf.multiply(A_neg_rel_tn_batch, tf.multiply(A_neg_h_con_batch, A_neg_tn_con_batch)), 2), self._epsilon)),1)))
+            
+            self._A_loss = A_loss = (tf.reduce_sum(tf.add(tf.add(f_score_h, f_score_hn), f_score_tn)) ) / self._batch_size
+            """
             # Optimizer
             self._lr = lr = tf.placeholder(tf.float32)
             # consider tf.train.AdagradOptimizer(lr)
-            self._opt = opt = tf.train.GradientDescentOptimizer(lr)
+            #self._opt = opt = tf.train.GradientDescentOptimizer(lr)
+            self._opt = opt = tf.train.AdagradOptimizer(lr)
             self._train_op_A = train_op_A = opt.minimize(-A_loss)
             #remove
             #self._train_op_C_A = train_op_C_A = opt.minimize(C_loss_A)
